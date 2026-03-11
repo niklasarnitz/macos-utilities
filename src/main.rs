@@ -17,7 +17,7 @@ use constants::{
     ACTION_INFOBAR_BATTERY, ACTION_INFOBAR_NEXT_CALENDAR,
     ACTION_INFOBAR_NOWPLAYING, ACTION_INFOBAR_NOWPLAYING_PROGRESS, ACTION_INFOBAR_NOWPLAYING_TIME,
     ACTION_MUTE, ACTION_NEXT, ACTION_PLAYPAUSE, ACTION_PREVIOUS,
-    ACTION_VOLUME_DOWN, ACTION_VOLUME_UP, IMG_MUTE_OFF, IMG_MUTE_ON, IMG_PAUSE, IMG_PLAY,
+    ACTION_VOLUME_DOWN, ACTION_VOLUME_UP,
 };
 use futures_util::{SinkExt, StreamExt};
 use infobar::{
@@ -26,7 +26,7 @@ use infobar::{
     ProgressTimeFormat,
 };
 use protocol::{
-    make_set_image, make_set_infobar_item_visibility, GetSettings, IncomingMessage,
+    make_set_infobar_item_visibility, GetSettings, IncomingMessage,
     InfobarComponent, RegisterEvent, SetImage, SetImagePayload, SetInfobarComponent,
     SetInfobarComponentPayload, SetState, SetStatePayload, ShowInfobarPopover,
     ShowInfobarPopoverPayload,
@@ -214,12 +214,18 @@ fn build_sync_messages(
     match action {
         ACTION_INFOBAR_NOWPLAYING => {
             let info = get_now_playing();
+            let is_displaying_data = info.state == "playing" && !info.title.is_empty();
             let options = nowplaying_render_options(settings.as_ref());
             let artwork = if options.show_cover { get_artwork_b64() } else { None };
             log::debug!("[sync] infobar.nowplaying → {} / {}", info.title, info.artist);
-            if info.state != "stopped" && !info.title.is_empty() {
-                if let Some(image) = artwork.clone() {
-                    vec![serde_json::to_string(&SetInfobarComponent {
+            let mut messages = vec![make_set_infobar_item_visibility(ctx, is_displaying_data)];
+            if !is_displaying_data {
+                return messages;
+            }
+
+            if let Some(image) = artwork.clone() {
+                messages.push(
+                    serde_json::to_string(&SetInfobarComponent {
                         event: "setInfobarComponent",
                         payload: SetInfobarComponentPayload {
                             context: ctx.to_owned(),
@@ -230,9 +236,11 @@ fn build_sync_messages(
                             },
                         },
                     })
-                    .unwrap()]
-                } else if let Some(data_uri) = generate_infobar_image(&info, artwork, false, &options) {
-                    vec![serde_json::to_string(&SetImage {
+                    .unwrap(),
+                );
+            } else if let Some(data_uri) = generate_infobar_image(&info, artwork, false, &options) {
+                messages.push(
+                    serde_json::to_string(&SetImage {
                         event: "setImage",
                         context: ctx.to_owned(),
                         payload: SetImagePayload {
@@ -240,51 +248,51 @@ fn build_sync_messages(
                             target: 0,
                         },
                     })
-                    .unwrap()]
-                } else {
-                    vec![]
-                }
-            } else if let Some(data_uri) = generate_infobar_image(&info, artwork, false, &options) {
-                vec![serde_json::to_string(&SetImage {
-                    event: "setImage",
-                    context: ctx.to_owned(),
-                    payload: SetImagePayload {
-                        image: data_uri,
-                        target: 0,
-                    },
-                })
-                .unwrap()]
-            } else {
-                vec![]
+                    .unwrap(),
+                );
             }
+            messages
         }
         ACTION_INFOBAR_NOWPLAYING_TIME => {
             let info = get_now_playing();
+            let is_displaying_data = info.state == "playing" && !info.title.is_empty();
             let options = nowplaying_render_options(settings.as_ref());
             let artwork = if options.show_cover { get_artwork_b64() } else { None };
             log::debug!(
                 "[sync] infobar.nowplaying-time → {} / {}",
                 info.title, info.artist
             );
-            if let Some(data_uri) = generate_infobar_image(&info, artwork, true, &options) {
-                vec![serde_json::to_string(&SetImage {
-                    event: "setImage",
-                    context: ctx.to_owned(),
-                    payload: SetImagePayload {
-                        image: data_uri,
-                        target: 0,
-                    },
-                })
-                .unwrap()]
-            } else {
-                vec![]
+            let mut messages = vec![make_set_infobar_item_visibility(ctx, is_displaying_data)];
+            if !is_displaying_data {
+                return messages;
             }
+
+            if let Some(data_uri) = generate_infobar_image(&info, artwork, true, &options) {
+                messages.push(
+                    serde_json::to_string(&SetImage {
+                        event: "setImage",
+                        context: ctx.to_owned(),
+                        payload: SetImagePayload {
+                            image: data_uri,
+                            target: 0,
+                        },
+                    })
+                    .unwrap(),
+                );
+            }
+            messages
         }
         ACTION_INFOBAR_NOWPLAYING_PROGRESS => {
             let info = get_now_playing();
+            let is_displaying_data = info.state == "playing" && !info.title.is_empty();
+            let mut messages = vec![make_set_infobar_item_visibility(ctx, is_displaying_data)];
+            if !is_displaying_data {
+                return messages;
+            }
+
             let options = nowplaying_progress_options(settings.as_ref());
             if options.fallback_mode == "keep_last" && (info.state == "stopped" || info.title.is_empty()) {
-                return vec![];
+                return messages;
             }
 
             let artwork = if options.base.show_cover { get_artwork_b64() } else { None };
@@ -310,18 +318,19 @@ fn build_sync_messages(
             if let Some(data_uri) =
                 generate_infobar_nowplaying_progress_image(&info, artwork, progress, &options)
             {
-                vec![serde_json::to_string(&SetImage {
-                    event: "setImage",
-                    context: ctx.to_owned(),
-                    payload: SetImagePayload {
-                        image: data_uri,
-                        target: 0,
-                    },
-                })
-                .unwrap()]
-            } else {
-                vec![]
+                messages.push(
+                    serde_json::to_string(&SetImage {
+                        event: "setImage",
+                        context: ctx.to_owned(),
+                        payload: SetImagePayload {
+                            image: data_uri,
+                            target: 0,
+                        },
+                    })
+                    .unwrap(),
+                );
             }
+            messages
         }
         ACTION_INFOBAR_NEXT_CALENDAR => {
             let selected_calendars = settings_string(settings.as_ref(), "calendarNames", "")
@@ -378,31 +387,23 @@ fn build_sync_messages(
             let playing = is_media_playing();
             let state = if playing { 1u32 } else { 0 };
             log::debug!("[sync] playpause → state={state} (playing={playing})");
-            let img = if playing { IMG_PAUSE } else { IMG_PLAY };
-            vec![
-                serde_json::to_string(&SetState {
-                    event: "setState",
-                    context: ctx,
-                    payload: SetStatePayload { state },
-                })
-                .unwrap(),
-                make_set_image(ctx, img),
-            ]
+            vec![serde_json::to_string(&SetState {
+                event: "setState",
+                context: ctx,
+                payload: SetStatePayload { state },
+            })
+            .unwrap()]
         }
         ACTION_MUTE => {
             let muted = is_muted();
             let state = if muted { 1u32 } else { 0 };
             log::debug!("[sync] mute → state={state} (muted={muted})");
-            let img = if muted { IMG_MUTE_ON } else { IMG_MUTE_OFF };
-            vec![
-                serde_json::to_string(&SetState {
-                    event: "setState",
-                    context: ctx,
-                    payload: SetStatePayload { state },
-                })
-                .unwrap(),
-                make_set_image(ctx, img),
-            ]
+            vec![serde_json::to_string(&SetState {
+                event: "setState",
+                context: ctx,
+                payload: SetStatePayload { state },
+            })
+            .unwrap()]
         }
         _ => vec![],
     }
