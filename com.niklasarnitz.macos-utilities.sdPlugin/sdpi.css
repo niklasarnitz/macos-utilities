@@ -56,7 +56,7 @@ select {
 	-moz-appearance: none;
 	-o-appearance: none;
 	appearance: none;
-	background: url(../assets/caret.svg) no-repeat 97% center;
+	background-image: none;
 }
 
 input[type="button"],

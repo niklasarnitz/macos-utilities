@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 144" fill="none">
-  <!-- Speaker body: same shape as mute-off, no sound waves -->
-  <path d="M10 54 H34 L66 32 V112 L34 90 H10 Z" fill="white"/>
-  <!-- X mark: centered at (106, 72) – vertically aligned with the speaker midpoint -->
-  <line x1="90" y1="56" x2="122" y2="88" stroke="white" stroke-width="9" stroke-linecap="round"/>
-  <line x1="122" y1="56" x2="90" y2="88" stroke="white" stroke-width="9" stroke-linecap="round"/>
-</svg>
