@@ -1006,7 +1006,7 @@ pub fn is_muted() -> bool {
 
 #[cfg(target_os = "macos")]
 pub fn is_media_playing() -> bool {
-    get_now_playing().state == "playing"
+    get_now_playing().state.trim().eq_ignore_ascii_case("playing")
 }
 
 #[cfg(not(target_os = "macos"))]

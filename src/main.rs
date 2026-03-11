@@ -45,6 +45,10 @@ type VolumeSteps = Arc<Mutex<HashMap<String, i32>>>;
 type SettingsStore = Arc<Mutex<HashMap<String, serde_json::Value>>>;
 type ProgressSmoothingStore = Arc<Mutex<HashMap<String, f32>>>;
 
+fn should_render_now_playing(info: &system_media::NowPlaying) -> bool {
+    info.state.trim().eq_ignore_ascii_case("playing") && !info.title.trim().is_empty()
+}
+
 fn settings_i64(settings: Option<&serde_json::Value>, key: &str, default: i64) -> i64 {
     settings
         .and_then(|s| s.get(key))
@@ -214,7 +218,7 @@ fn build_sync_messages(
     match action {
         ACTION_INFOBAR_NOWPLAYING => {
             let info = get_now_playing();
-            let is_displaying_data = info.state == "playing" && !info.title.is_empty();
+            let is_displaying_data = should_render_now_playing(&info);
             let options = nowplaying_render_options(settings.as_ref());
             let artwork = if options.show_cover { get_artwork_b64() } else { None };
             log::debug!("[sync] infobar.nowplaying → {} / {}", info.title, info.artist);
@@ -255,7 +259,7 @@ fn build_sync_messages(
         }
         ACTION_INFOBAR_NOWPLAYING_TIME => {
             let info = get_now_playing();
-            let is_displaying_data = info.state == "playing" && !info.title.is_empty();
+            let is_displaying_data = should_render_now_playing(&info);
             let options = nowplaying_render_options(settings.as_ref());
             let artwork = if options.show_cover { get_artwork_b64() } else { None };
             log::debug!(
@@ -284,7 +288,7 @@ fn build_sync_messages(
         }
         ACTION_INFOBAR_NOWPLAYING_PROGRESS => {
             let info = get_now_playing();
-            let is_displaying_data = info.state == "playing" && !info.title.is_empty();
+            let is_displaying_data = should_render_now_playing(&info);
             let mut messages = vec![make_set_infobar_item_visibility(ctx, is_displaying_data)];
             if !is_displaying_data {
                 return messages;
