@@ -1,5 +1,4 @@
 #[cfg(target_os = "macos")]
-#[macro_use]
 extern crate objc2 as objc;
 
 #[path = "../system_media.rs"]

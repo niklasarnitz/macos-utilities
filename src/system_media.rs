@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct NowPlaying {
     pub state: String,
     pub title: String,
@@ -14,6 +15,55 @@ pub struct PlaybackProgress {
 pub struct BatteryStatus {
     pub percent: f32,
     pub is_charging: bool,
+}
+
+#[cfg(target_os = "macos")]
+fn choose_best_now_playing(candidates: Vec<(String, String, String)>) -> Option<NowPlaying> {
+    fn has_metadata(title: &str, artist: &str) -> bool {
+        !title.trim().is_empty() || !artist.trim().is_empty()
+    }
+
+    if let Some((state, title, artist)) = candidates
+        .iter()
+        .find(|(state, title, artist)| {
+            state.trim().eq_ignore_ascii_case("playing") && has_metadata(title, artist)
+        })
+        .cloned()
+    {
+        return Some(NowPlaying { state, title, artist });
+    }
+
+    if let Some((state, title, artist)) = candidates
+        .iter()
+        .find(|(state, _, _)| state.trim().eq_ignore_ascii_case("playing"))
+        .cloned()
+    {
+        return Some(NowPlaying { state, title, artist });
+    }
+
+    if let Some((state, title, artist)) = candidates
+        .iter()
+        .find(|(state, title, artist)| {
+            state.trim().eq_ignore_ascii_case("paused") && has_metadata(title, artist)
+        })
+        .cloned()
+    {
+        return Some(NowPlaying { state, title, artist });
+    }
+
+    if let Some((state, title, artist)) = candidates
+        .iter()
+        .find(|(_, title, artist)| has_metadata(title, artist))
+        .cloned()
+    {
+        return Some(NowPlaying { state, title, artist });
+    }
+
+    candidates.into_iter().next().map(|(state, title, artist)| NowPlaying {
+        state,
+        title,
+        artist,
+    })
 }
 
 #[cfg(target_os = "macos")]
@@ -38,20 +88,34 @@ mod applescript_fallback {
         let out = run(&[
             "if application \"Music\" is running then",
             "  tell application \"Music\"",
-            "    try",
-            "      if player state is playing then",
-            "        return \"playing|\" & (name of current track) & \"|\" & (artist of current track)",
-            "      else if player state is paused then",
-            "        return \"paused|\" & (name of current track) & \"|\" & (artist of current track)",
-            "      end if",
-            "    end try",
+            "    if player state is playing then",
+            "      try",
+            "        set currentTrack to current track",
+            "        set trackName to name of currentTrack",
+            "        set trackArtist to artist of currentTrack",
+            "        return \"playing|\" & trackName & \"|\" & trackArtist",
+            "      on error",
+            "        return \"playing||\"",
+            "      end try",
+            "    else if player state is paused then",
+            "      try",
+            "        set currentTrack to current track",
+            "        set trackName to name of currentTrack",
+            "        set trackArtist to artist of currentTrack",
+            "        return \"paused|\" & trackName & \"|\" & trackArtist",
+            "      on error",
+            "        return \"paused||\"",
+            "      end try",
+            "    else",
+            "      return \"stopped||\"",
+            "    end if",
             "  end tell",
             "end if",
             "return \"stopped||\"",
         ]);
 
         let parts: Vec<&str> = out.splitn(3, '|').collect();
-        if parts.len() == 3 {
+        if parts.len() >= 3 {
             return Some((
                 parts[0].to_owned(),
                 parts[1].to_owned(),
@@ -174,14 +238,14 @@ mod media_keys {
         unsafe {
             let ev_down: *mut Object = msg_send![
                 class!(NSEvent),
-                otherEventWithType: NS_EVENT_TYPE_SYSTEM_DEFINED
-                location: zero
-                modifierFlags: down_flags
-                timestamp: 0.0f64
-                windowNumber: 0isize
-                context: null_ctx
-                subtype: NX_SUBTYPE_AUX_CONTROL_BUTTONS
-                data1: down_data1
+                otherEventWithType: NS_EVENT_TYPE_SYSTEM_DEFINED,
+                location: zero,
+                modifierFlags: down_flags,
+                timestamp: 0.0f64,
+                windowNumber: 0isize,
+                context: null_ctx,
+                subtype: NX_SUBTYPE_AUX_CONTROL_BUTTONS,
+                data1: down_data1,
                 data2: (-1isize)
             ];
             if !ev_down.is_null() {
@@ -193,14 +257,14 @@ mod media_keys {
 
             let ev_up: *mut Object = msg_send![
                 class!(NSEvent),
-                otherEventWithType: NS_EVENT_TYPE_SYSTEM_DEFINED
-                location: zero
-                modifierFlags: up_flags
-                timestamp: 0.0f64
-                windowNumber: 0isize
-                context: null_ctx
-                subtype: NX_SUBTYPE_AUX_CONTROL_BUTTONS
-                data1: up_data1
+                otherEventWithType: NS_EVENT_TYPE_SYSTEM_DEFINED,
+                location: zero,
+                modifierFlags: up_flags,
+                timestamp: 0.0f64,
+                windowNumber: 0isize,
+                context: null_ctx,
+                subtype: NX_SUBTYPE_AUX_CONTROL_BUTTONS,
+                data1: up_data1,
                 data2: (-1isize)
             ];
             if !ev_up.is_null() {
@@ -579,8 +643,8 @@ mod now_playing_macos {
         let ns_string: *mut Object = msg_send![class!(NSString), alloc];
         msg_send![
             ns_string,
-            initWithBytes: s.as_ptr()
-            length: s.len()
+            initWithBytes: s.as_ptr().cast::<std::ffi::c_void>(),
+            length: s.len(),
             encoding: NS_UTF8_STRING_ENCODING
         ]
     }
@@ -681,7 +745,7 @@ mod now_playing_macos {
         let props: *mut Object = msg_send![class!(NSDictionary), dictionary];
         let png_data: *mut Object = msg_send![
             bitmap_rep,
-            representationUsingType: NS_BITMAP_IMAGE_FILE_TYPE_PNG
+            representationUsingType: NS_BITMAP_IMAGE_FILE_TYPE_PNG,
             properties: props
         ];
 
@@ -693,17 +757,21 @@ mod now_playing_macos {
         let playback_rate = unsafe {
             dict_get_f64_with_keys(
                 info,
-                &["playbackRate", "MPNowPlayingInfoPropertyPlaybackRate"],
+                &[
+                    "playbackRate",
+                    "MPNowPlayingInfoPropertyPlaybackRate",
+                    "kMRMediaRemoteNowPlayingInfoPlaybackRate",
+                ],
             )
             .unwrap_or(0.0)
         };
 
-        if title.is_empty() && artist.is_empty() {
-            "stopped".to_owned()
-        } else if playback_rate > 0.0 {
+        if playback_rate > 0.0 {
             "playing".to_owned()
-        } else {
+        } else if !title.is_empty() || !artist.is_empty() {
             "paused".to_owned()
+        } else {
+            "stopped".to_owned()
         }
     }
 
@@ -719,13 +787,64 @@ mod now_playing_macos {
                 return None;
             }
 
-            let title = dict_get_string_with_keys(info, &["title", "MPMediaItemPropertyTitle"])
-                .unwrap_or_default();
-            let artist = dict_get_string_with_keys(info, &["artist", "MPMediaItemPropertyArtist"])
-                .unwrap_or_default();
+            let title = dict_get_string_with_keys(
+                info,
+                &[
+                    "title",
+                    "MPMediaItemPropertyTitle",
+                    "kMRMediaRemoteNowPlayingInfoTitle",
+                ],
+            )
+            .unwrap_or_default();
+            let artist = dict_get_string_with_keys(
+                info,
+                &[
+                    "artist",
+                    "MPMediaItemPropertyArtist",
+                    "kMRMediaRemoteNowPlayingInfoArtist",
+                    "albumArtist",
+                    "MPMediaItemPropertyAlbumArtist",
+                    "kMRMediaRemoteNowPlayingInfoAlbumArtist",
+                ],
+            )
+            .unwrap_or_default();
             let state = parse_playback_state(info, &title, &artist);
 
             Some((state, title, artist))
+        })
+    }
+
+    pub fn get_now_playing_progress() -> Option<(f32, f32)> {
+        autoreleasepool(|_| unsafe {
+            let center: *mut Object = msg_send![class!(MPNowPlayingInfoCenter), defaultCenter];
+            if center.is_null() {
+                return None;
+            }
+
+            let info: *mut Object = msg_send![center, nowPlayingInfo];
+            if info.is_null() {
+                return None;
+            }
+
+            let elapsed = dict_get_f64_with_keys(
+                info,
+                &[
+                    "elapsedPlaybackTime",
+                    "MPNowPlayingInfoPropertyElapsedPlaybackTime",
+                    "kMRMediaRemoteNowPlayingInfoElapsedTime",
+                ],
+            )? as f32;
+
+            let duration = dict_get_f64_with_keys(
+                info,
+                &[
+                    "playbackDuration",
+                    "MPMediaItemPropertyPlaybackDuration",
+                    "kMRMediaRemoteNowPlayingInfoDuration",
+                ],
+            )? as f32;
+
+            (duration > 0.0).then_some((elapsed.max(0.0), duration))
         })
     }
 
@@ -783,8 +902,8 @@ mod music_scripting {
         let ns_string: *mut Object = msg_send![class!(NSString), alloc];
         msg_send![
             ns_string,
-            initWithBytes: s.as_ptr()
-            length: s.len()
+            initWithBytes: s.as_ptr().cast::<std::ffi::c_void>(),
+            length: s.len(),
             encoding: NS_UTF8_STRING_ENCODING
         ]
     }
@@ -812,41 +931,64 @@ mod music_scripting {
         Some(std::slice::from_raw_parts(ptr, len).to_vec())
     }
 
+    unsafe fn value_for_key(obj: *mut Object, key: &str) -> *mut Object {
+        if obj.is_null() {
+            return std::ptr::null_mut();
+        }
+        let key_ns = nsstring_from_str(key);
+        let value: *mut Object = msg_send![obj, valueForKey: key_ns];
+        let _: () = msg_send![key_ns, release];
+        value
+    }
+
+    unsafe fn kvc_string(obj: *mut Object, key: &str) -> Option<String> {
+        let value = value_for_key(obj, key);
+        if value.is_null() {
+            return None;
+        }
+        nsstring_to_string(value)
+    }
+
+    unsafe fn kvc_f64(obj: *mut Object, key: &str) -> Option<f64> {
+        let value = value_for_key(obj, key);
+        if value.is_null() {
+            return None;
+        }
+        let number: f64 = msg_send![value, doubleValue];
+        Some(number)
+    }
+
+    unsafe fn kvc_i64(obj: *mut Object, key: &str) -> Option<i64> {
+        let value = value_for_key(obj, key);
+        if value.is_null() {
+            return None;
+        }
+        let number: i64 = msg_send![value, longLongValue];
+        Some(number)
+    }
+
     pub fn get_now_playing() -> Option<(String, String, String)> {
         autoreleasepool(|_| unsafe {
-            let bundle_id = nsstring_from_str("com.apple.Music");
-            let app: *mut Object =
-                msg_send![class!(SBApplication), applicationWithBundleIdentifier: bundle_id];
-            let _: () = msg_send![bundle_id, release];
-
-            if app.is_null() {
+            let Some(app) = get_music_app() else {
                 return None;
-            }
+            };
 
-            let is_running: bool = msg_send![app, isRunning];
-            if !is_running {
-                return None;
-            }
+            let player_state = kvc_i64(app, "playerState").map(|v| v as u32);
 
-            let player_state_raw: i64 = msg_send![app, playerState];
-            let player_state = player_state_raw as u32;
-
-            let track: *mut Object = msg_send![app, currentTrack];
+            let track = value_for_key(app, "currentTrack");
             let (title, artist) = if track.is_null() {
                 (String::new(), String::new())
             } else {
-                let title_obj: *mut Object = msg_send![track, name];
-                let artist_obj: *mut Object = msg_send![track, artist];
                 (
-                    nsstring_to_string(title_obj).unwrap_or_default(),
-                    nsstring_to_string(artist_obj).unwrap_or_default(),
+                    kvc_string(track, "name").unwrap_or_default(),
+                    kvc_string(track, "artist").unwrap_or_default(),
                 )
             };
 
             let state = match player_state {
-                PLAYER_PLAYING => "playing",
-                PLAYER_PAUSED => "paused",
-                PLAYER_STOPPED => "stopped",
+                Some(PLAYER_PLAYING) => "playing",
+                Some(PLAYER_PAUSED) => "paused",
+                Some(PLAYER_STOPPED) => "stopped",
                 _ => {
                     if !title.is_empty() || !artist.is_empty() {
                         "paused"
@@ -858,6 +1000,24 @@ mod music_scripting {
             .to_owned();
 
             Some((state, title, artist))
+        })
+    }
+
+    pub fn get_now_playing_progress() -> Option<(f32, f32)> {
+        autoreleasepool(|_| unsafe {
+            let Some(app) = get_music_app() else {
+                return None;
+            };
+
+            let track = value_for_key(app, "currentTrack");
+            if track.is_null() {
+                return None;
+            }
+
+            let elapsed = kvc_f64(app, "playerPosition")? as f32;
+            let duration = kvc_f64(track, "duration")? as f32;
+
+            (duration > 0.0).then_some((elapsed.max(0.0), duration))
         })
     }
 
@@ -1006,7 +1166,13 @@ pub fn is_muted() -> bool {
 
 #[cfg(target_os = "macos")]
 pub fn is_media_playing() -> bool {
-    get_now_playing().state.trim().eq_ignore_ascii_case("playing")
+    if let Some((state, _, _)) = music_scripting::get_now_playing() {
+        return state.trim().eq_ignore_ascii_case("playing");
+    }
+    if let Some((state, _, _)) = now_playing_macos::get_now_playing() {
+        return state.trim().eq_ignore_ascii_case("playing");
+    }
+    false
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -1065,6 +1231,14 @@ pub fn get_now_playing() -> NowPlaying {
         };
     }
 
+    if let Some((state, title, artist)) = now_playing_macos::get_now_playing() {
+        return NowPlaying {
+            state,
+            title,
+            artist,
+        };
+    }
+
     NowPlaying {
         state: "stopped".into(),
         title: String::new(),
@@ -1072,9 +1246,11 @@ pub fn get_now_playing() -> NowPlaying {
     }
 }
 
+
 #[cfg(target_os = "macos")]
 pub fn get_now_playing_progress() -> Option<PlaybackProgress> {
-    let (elapsed_secs, duration_secs) = applescript_fallback::get_now_playing_progress()?;
+    let (elapsed_secs, duration_secs) = music_scripting::get_now_playing_progress()
+        .or_else(now_playing_macos::get_now_playing_progress)?;
     let remaining_secs = (duration_secs - elapsed_secs).max(0.0);
     let progress_percent = (elapsed_secs / duration_secs * 100.0).clamp(0.0, 100.0);
     Some(PlaybackProgress {

@@ -46,7 +46,7 @@ type SettingsStore = Arc<Mutex<HashMap<String, serde_json::Value>>>;
 type ProgressSmoothingStore = Arc<Mutex<HashMap<String, f32>>>;
 
 fn should_render_now_playing(info: &system_media::NowPlaying) -> bool {
-    info.state.trim().eq_ignore_ascii_case("playing") && !info.title.trim().is_empty()
+    info.state.trim().eq_ignore_ascii_case("playing")
 }
 
 fn settings_i64(settings: Option<&serde_json::Value>, key: &str, default: i64) -> i64 {

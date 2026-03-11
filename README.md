@@ -42,6 +42,10 @@ cd macos-utilities
 
 The built zip is written to `dist/macos-utilities.zip`.
 
+The script also deploys the plugin directly to:
+
+`~/Library/Application Support/opendeck/plugins/com.niklasarnitz.macos-utilities.sdPlugin`
+
 ## How it works
 
 | Capability                 | Implementation                                                                                         |

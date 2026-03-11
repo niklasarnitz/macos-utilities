@@ -15,6 +15,8 @@ PLUGIN_FOLDER_NAME="com.niklasarnitz.macos-utilities.sdPlugin"
 DIST_DIR="$SCRIPT_DIR/dist"
 ZIP_OUT="$DIST_DIR/macos-utilities.zip"
 BINARY_NAME="macos-utilities"
+OPENDECK_PLUGIN_ROOT="$HOME/Library/Application Support/opendeck/plugins"
+OPENDECK_PLUGIN_DIR="$OPENDECK_PLUGIN_ROOT/$PLUGIN_FOLDER_NAME"
 
 # ── 1. Detect native arch and compile ────────────────────────────────────────
 ARCH="$(uname -m)"   # arm64 or x86_64
@@ -54,3 +56,10 @@ zip -r "$ZIP_OUT" "$PLUGIN_FOLDER_NAME" \
 echo "    Created $ZIP_OUT"
 echo ""
 echo "Install via OpenDeck → Settings → Install ZIP"
+
+# ── 5. Deploy directly to local OpenDeck plugin dir ─────────────────────────
+echo "==> Deploying to OpenDeck plugin directory…"
+mkdir -p "$OPENDECK_PLUGIN_ROOT"
+rm -rf "$OPENDECK_PLUGIN_DIR"
+cp -R "$PLUGIN_DIR" "$OPENDECK_PLUGIN_DIR"
+echo "    Deployed → $OPENDECK_PLUGIN_DIR"
