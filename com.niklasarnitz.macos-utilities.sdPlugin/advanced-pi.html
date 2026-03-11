@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="sdpi.css" />
+    <script>
+      let websocket;
+      let actionInfo;
+
+      const defaults = {
+        updateIntervalMs: 250,
+        showCover: true,
+        titleFontSize: 22,
+        artistFontSize: 18,
+        lineClamp: 2,
+        leftPadding: 10,
+        rightPadding: 6,
+        progressBarHeight: 6,
+        highContrast: false,
+        roundedBar: false,
+        timeFormat: "remaining",
+        progressSmoothing: false,
+        fallbackMode: "no_track",
+        batteryDisplayMode: "percent_and_charging",
+        lowBatteryThreshold: 20,
+        chargingIndicatorStyle: "text",
+        overlayDurationMs: 1200,
+        calendarNames: ""
+      };
+
+      function readField(id, type = "number") {
+        const el = document.getElementById(id);
+        if (!el) return defaults[id];
+        if (type === "checkbox") return !!el.checked;
+        if (type === "select") return el.value;
+        const n = Number(el.value);
+        return Number.isFinite(n) ? n : defaults[id];
+      }
+
+      function currentSettings() {
+        return {
+          updateIntervalMs: readField("updateIntervalMs"),
+          showCover: readField("showCover", "checkbox"),
+          titleFontSize: readField("titleFontSize"),
+          artistFontSize: readField("artistFontSize"),
+          lineClamp: readField("lineClamp", "select"),
+          leftPadding: readField("leftPadding"),
+          rightPadding: readField("rightPadding"),
+          progressBarHeight: readField("progressBarHeight"),
+          highContrast: readField("highContrast", "checkbox"),
+          roundedBar: readField("roundedBar", "checkbox"),
+          timeFormat: readField("timeFormat", "select"),
+          progressSmoothing: readField("progressSmoothing", "checkbox"),
+          fallbackMode: readField("fallbackMode", "select"),
+          batteryDisplayMode: readField("batteryDisplayMode", "select"),
+          lowBatteryThreshold: readField("lowBatteryThreshold"),
+          chargingIndicatorStyle: readField("chargingIndicatorStyle", "select"),
+          overlayDurationMs: readField("overlayDurationMs"),
+          calendarNames: (document.getElementById("calendarNames")?.value || "").trim()
+        };
+      }
+
+      function applySettings(settings) {
+        const merged = { ...defaults, ...(settings || {}) };
+        Object.entries(merged).forEach(([k, v]) => {
+          const el = document.getElementById(k);
+          if (!el) return;
+          if (el.type === "checkbox") {
+            el.checked = !!v;
+          } else {
+            el.value = String(v);
+          }
+        });
+      }
+
+      function toggleSections(action) {
+        const isNowPlaying = action.includes("infobar.nowplaying");
+        const isNowPlayingProgress = action.includes("infobar.nowplaying-progress");
+        const isBattery = action.includes("infobar.battery");
+        const isCalendar = action.includes("infobar.nextcalendar");
+
+        document.querySelectorAll("[data-group]").forEach((el) => {
+          const group = el.getAttribute("data-group");
+          const visible =
+            group === "common" ||
+            (group === "nowplaying" && isNowPlaying) ||
+            (group === "progress" && isNowPlayingProgress) ||
+            (group === "battery" && isBattery) ||
+            (group === "calendar" && isCalendar);
+          el.style.display = visible ? "flex" : "none";
+        });
+      }
+
+      function update() {
+        if (!websocket || websocket.readyState !== WebSocket.OPEN || !actionInfo) return;
+        websocket.send(
+          JSON.stringify({
+            event: "setSettings",
+            context: actionInfo.context,
+            payload: currentSettings()
+          })
+        );
+      }
+
+      function connectElgatoStreamDeckSocket(inPort, inPropertyInspectorUUID, inRegisterEvent, inInfo, inActionInfo) {
+        actionInfo = JSON.parse(inActionInfo);
+        websocket = new WebSocket("ws://localhost:" + inPort);
+
+        websocket.onopen = () => {
+          websocket.send(
+            JSON.stringify({
+              event: inRegisterEvent,
+              uuid: inPropertyInspectorUUID
+            })
+          );
+
+          toggleSections(actionInfo.action || "");
+          applySettings(actionInfo.payload?.settings);
+        };
+      }
+    </script>
+  </head>
+  <body>
+    <div class="sdpi-item" data-group="common">
+      <div class="sdpi-item-label">Update ms</div>
+      <input id="updateIntervalMs" class="sdpi-item-value" type="number" min="100" max="5000" oninput="update()" />
+    </div>
+
+    <div class="sdpi-item" data-group="nowplaying">
+      <div class="sdpi-item-label">Show Cover</div>
+      <input id="showCover" class="sdpi-item-value" type="checkbox" onchange="update()" />
+    </div>
+    <div class="sdpi-item" data-group="nowplaying">
+      <div class="sdpi-item-label">Title Size</div>
+      <input id="titleFontSize" class="sdpi-item-value" type="number" min="12" max="30" oninput="update()" />
+    </div>
+    <div class="sdpi-item" data-group="nowplaying">
+      <div class="sdpi-item-label">Artist Size</div>
+      <input id="artistFontSize" class="sdpi-item-value" type="number" min="10" max="24" oninput="update()" />
+    </div>
+    <div class="sdpi-item" data-group="nowplaying">
+      <div class="sdpi-item-label">Line Clamp</div>
+      <select id="lineClamp" class="sdpi-item-value" onchange="update()">
+        <option value="1">1</option>
+        <option value="2">2</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-group="nowplaying">
+      <div class="sdpi-item-label">Left Pad</div>
+      <input id="leftPadding" class="sdpi-item-value" type="number" min="0" max="30" oninput="update()" />
+    </div>
+    <div class="sdpi-item" data-group="nowplaying">
+      <div class="sdpi-item-label">Right Pad</div>
+      <input id="rightPadding" class="sdpi-item-value" type="number" min="0" max="30" oninput="update()" />
+    </div>
+    <div class="sdpi-item" data-group="nowplaying">
+      <div class="sdpi-item-label">Bar Height</div>
+      <input id="progressBarHeight" class="sdpi-item-value" type="number" min="3" max="12" oninput="update()" />
+    </div>
+    <div class="sdpi-item" data-group="nowplaying">
+      <div class="sdpi-item-label">Contrast</div>
+      <input id="highContrast" class="sdpi-item-value" type="checkbox" onchange="update()" />
+    </div>
+    <div class="sdpi-item" data-group="nowplaying">
+      <div class="sdpi-item-label">Rounded Bar</div>
+      <input id="roundedBar" class="sdpi-item-value" type="checkbox" onchange="update()" />
+    </div>
+
+    <div class="sdpi-item" data-group="progress">
+      <div class="sdpi-item-label">Time Format</div>
+      <select id="timeFormat" class="sdpi-item-value" onchange="update()">
+        <option value="remaining">Remaining</option>
+        <option value="elapsed_total">Elapsed/Total</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-group="progress">
+      <div class="sdpi-item-label">Smoothing</div>
+      <input id="progressSmoothing" class="sdpi-item-value" type="checkbox" onchange="update()" />
+    </div>
+    <div class="sdpi-item" data-group="progress">
+      <div class="sdpi-item-label">Fallback</div>
+      <select id="fallbackMode" class="sdpi-item-value" onchange="update()">
+        <option value="no_track">No Track</option>
+        <option value="blank">Blank</option>
+        <option value="keep_last">Keep Last</option>
+      </select>
+    </div>
+
+    <div class="sdpi-item" data-group="battery">
+      <div class="sdpi-item-label">Display</div>
+      <select id="batteryDisplayMode" class="sdpi-item-value" onchange="update()">
+        <option value="percent_only">Percent Only</option>
+        <option value="percent_and_charging">Percent + Charging</option>
+        <option value="icon_and_percent">Icon + Percent</option>
+      </select>
+    </div>
+    <div class="sdpi-item" data-group="battery">
+      <div class="sdpi-item-label">Low Threshold</div>
+      <input id="lowBatteryThreshold" class="sdpi-item-value" type="number" min="5" max="50" oninput="update()" />
+    </div>
+    <div class="sdpi-item" data-group="battery">
+      <div class="sdpi-item-label">Charge Marker</div>
+      <select id="chargingIndicatorStyle" class="sdpi-item-value" onchange="update()">
+        <option value="text">Text</option>
+        <option value="symbol">Symbol</option>
+      </select>
+    </div>
+
+    <div class="sdpi-item" data-group="calendar">
+      <div class="sdpi-item-label">Calendars</div>
+      <input
+        id="calendarNames"
+        class="sdpi-item-value"
+        type="text"
+        placeholder="Work, Personal"
+        oninput="update()"
+      />
+    </div>
+  </body>
+</html>

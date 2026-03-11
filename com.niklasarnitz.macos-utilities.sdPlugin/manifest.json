@@ -1,0 +1,123 @@
+{
+  "Name": "macOS Utilities",
+  "Author": "Niklas Arnitz",
+  "Version": "1.0.0",
+  "Category": "macOS utils",
+  "Icon": "imgs/plugin-icon",
+  "OS": [{ "Platform": "mac" }],
+  "CodePaths": {
+    "x86_64-apple-darwin": "macos-utilities",
+    "aarch64-apple-darwin": "macos-utilities"
+  },
+  "CodePathMac": "macos-utilities",
+  "Actions": [
+    {
+      "UUID": "com.niklasarnitz.macos-utilities.previous",
+      "Name": "Previous Track",
+      "Icon": "imgs/prev",
+      "Tooltip": "Skip to the previous media track",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/prev", "Title": "" }]
+    },
+    {
+      "UUID": "com.niklasarnitz.macos-utilities.next",
+      "Name": "Next Track",
+      "Icon": "imgs/next",
+      "Tooltip": "Skip to the next media track",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/next", "Title": "" }]
+    },
+    {
+      "UUID": "com.niklasarnitz.macos-utilities.playpause",
+      "Name": "Play / Pause",
+      "Icon": "imgs/play",
+      "Tooltip": "Toggle play/pause for the current media",
+      "Controllers": ["Keypad"],
+      "DisableAutomaticStates": true,
+      "States": [
+        { "Image": "imgs/play", "Title": "" },
+        { "Image": "imgs/pause", "Title": "" }
+      ]
+    },
+    {
+      "UUID": "com.niklasarnitz.macos-utilities.volume-up",
+      "Name": "Volume Up",
+      "Icon": "imgs/volume-up",
+      "Tooltip": "Increase system volume (step configurable)",
+      "Controllers": ["Keypad"],
+      "PropertyInspectorPath": "volume-pi.html",
+      "States": [{ "Image": "imgs/volume-up", "Title": "" }]
+    },
+    {
+      "UUID": "com.niklasarnitz.macos-utilities.volume-down",
+      "Name": "Volume Down",
+      "Icon": "imgs/volume-down",
+      "Tooltip": "Decrease system volume (step configurable)",
+      "Controllers": ["Keypad"],
+      "PropertyInspectorPath": "volume-pi.html",
+      "States": [{ "Image": "imgs/volume-down", "Title": "" }]
+    },
+    {
+      "UUID": "com.niklasarnitz.macos-utilities.mute",
+      "Name": "Mute Toggle",
+      "Icon": "imgs/mute-off",
+      "Tooltip": "Toggle system audio mute",
+      "Controllers": ["Keypad"],
+      "DisableAutomaticStates": true,
+      "States": [
+        { "Image": "imgs/mute-off", "Title": "" },
+        { "Image": "imgs/mute-on", "Title": "" }
+      ]
+    },
+    {
+      "UUID": "com.niklasarnitz.macos-utilities.infobar.nowplaying",
+      "Name": "Now Playing (Infobar)",
+      "Icon": "imgs/plugin-icon",
+      "Tooltip": "Shows album art, song title, and artist on the Stream Deck Neo infobar",
+      "Controllers": ["Infobar"],
+      "PropertyInspectorPath": "advanced-pi.html",
+      "SupportedInMultiActions": false,
+      "States": [{ "Image": "actionDefaultImage" }]
+    },
+    {
+      "UUID": "com.niklasarnitz.macos-utilities.infobar.nowplaying-time",
+      "Name": "Now Playing + Time (Infobar)",
+      "Icon": "imgs/plugin-icon",
+      "Tooltip": "Shows album art, song title, artist, and the current time on the Stream Deck Neo infobar",
+      "Controllers": ["Infobar"],
+      "PropertyInspectorPath": "advanced-pi.html",
+      "SupportedInMultiActions": false,
+      "States": [{ "Image": "actionDefaultImage" }]
+    },
+    {
+      "UUID": "com.niklasarnitz.macos-utilities.infobar.nowplaying-progress",
+      "Name": "Now Playing Progress (Infobar)",
+      "Icon": "imgs/plugin-icon",
+      "Tooltip": "Shows cover art, title/artist, playback progress, and remaining time",
+      "Controllers": ["Infobar"],
+      "PropertyInspectorPath": "advanced-pi.html",
+      "SupportedInMultiActions": false,
+      "States": [{ "Image": "actionDefaultImage" }]
+    },
+    {
+      "UUID": "com.niklasarnitz.macos-utilities.infobar.battery",
+      "Name": "Battery Status (Infobar)",
+      "Icon": "imgs/plugin-icon",
+      "Tooltip": "Shows battery percentage and charging state",
+      "Controllers": ["Infobar"],
+      "PropertyInspectorPath": "advanced-pi.html",
+      "SupportedInMultiActions": false,
+      "States": [{ "Image": "actionDefaultImage" }]
+    },
+    {
+      "UUID": "com.niklasarnitz.macos-utilities.infobar.nextcalendar",
+      "Name": "Next Calendar Event",
+      "Icon": "imgs/plugin-icon",
+      "Tooltip": "Display the next upcoming macOS Calendar event on the infobar",
+      "Controllers": ["Infobar"],
+      "PropertyInspectorPath": "advanced-pi.html",
+      "SupportedInMultiActions": false,
+      "States": [{ "Image": "actionDefaultImage" }]
+    }
+  ]
+}

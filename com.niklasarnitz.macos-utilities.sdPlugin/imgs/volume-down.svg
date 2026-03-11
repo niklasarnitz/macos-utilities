@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 144" fill="none">
+  <!-- Speaker body: box + flared cone -->
+  <path d="M10 54 H34 L66 32 V112 L34 90 H10 Z" fill="white"/>
+  <!-- Wave 1 (close, one bar) -->
+  <path d="M76 56 Q92 72 76 88" stroke="white" stroke-width="7" stroke-linecap="round" fill="none"/>
+</svg>

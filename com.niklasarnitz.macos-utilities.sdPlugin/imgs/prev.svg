@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 144" fill="none">
+  <!-- Left bar -->
+  <rect x="22" y="32" width="12" height="80" rx="4" fill="white"/>
+  <!-- Left triangle (pointing left) -->
+  <polygon points="104,32 104,112 44,72" fill="white"/>
+</svg>
