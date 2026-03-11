@@ -5,9 +5,6 @@ dist/
 # Compiled plugin binary (placed by build.sh)
 com.niklasarnitz.macos-utilities.sdPlugin/macos-utilities
 
-# Generated PNG images (produced by build.rs from SVGs)
-com.niklasarnitz.macos-utilities.sdPlugin/imgs/*.png
-
 # macOS metadata
 .DS_Store
 **/.DS_Store
